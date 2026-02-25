@@ -15,6 +15,8 @@ KillChainPhase = Literal[
     "Actions",
 ]
 
+SeverityLevel = Literal["Critical", "High", "Medium", "Low"]
+
 
 class Host(BaseModel):
     id: str
@@ -39,6 +41,13 @@ class MitreInfo(BaseModel):
     technique_name: Optional[str] = None
 
 
+class Geo(BaseModel):
+    lat: Optional[float] = None
+    lon: Optional[float] = None
+    country_code: Optional[str] = None
+    country_name: Optional[str] = None
+
+
 class NormalizedEvent(BaseModel):
     event_id: str = Field(default_factory=lambda: str(uuid4()))
     timestamp: datetime
@@ -48,7 +57,8 @@ class NormalizedEvent(BaseModel):
     threat_intel: ThreatIntel = Field(default_factory=ThreatIntel)
     mitre: MitreInfo = Field(default_factory=MitreInfo)
     kill_chain_phase: Optional[KillChainPhase] = None
+    severity: Optional[SeverityLevel] = None
+    geo: Optional[Geo] = None
 
     class Config:
         populate_by_name = True
-

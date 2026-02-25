@@ -39,4 +39,6 @@ async def create_indexes() -> None:
     await events.create_index("threat_intel.threat_group")
     await events.create_index("mitre.technique_id")
     await events.create_index("kill_chain_phase")
-
+    # New indexes for SIEM dashboard and heatmap
+    await events.create_index("severity")
+    await events.create_index("geo.country_code")

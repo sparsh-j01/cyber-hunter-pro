@@ -1,6 +1,6 @@
 from collections import defaultdict, deque
 from datetime import datetime, timedelta
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from app.db.mongo import get_database
 
@@ -14,6 +14,36 @@ PHASE_WEIGHTS: dict[str, int] = {
 }
 
 KCPS_THRESHOLD = 15
+
+
+def assign_severity(event_dict: dict[str, Any]) -> str:
+    """
+    Auto-compute severity for an incoming event based on its attributes.
+
+    Rules (evaluated top-down, first match wins):
+      - Critical: ransomware-like action (file_encrypt) OR kill chain phase is C2/Actions
+      - High:     malicious intel + Installation/Exploitation phase
+      - Medium:   malicious intel with a known MITRE technique
+      - Low:      everything else
+    """
+    action = (event_dict.get("action") or "").lower()
+    phase = event_dict.get("kill_chain_phase") or ""
+    threat = event_dict.get("threat_intel") or {}
+    is_malicious = threat.get("is_malicious", False)
+    mitre = event_dict.get("mitre") or {}
+    technique_id = mitre.get("technique_id")
+
+    if action in {"file_encrypt", "file_write"} and phase in {"Installation", "Actions"}:
+        return "Critical"
+    if phase in {"C2", "Actions"}:
+        return "Critical"
+    if is_malicious and phase in {"Installation", "Exploitation"}:
+        return "High"
+    if is_malicious and technique_id:
+        return "Medium"
+    if is_malicious:
+        return "Medium"
+    return "Low"
 
 
 async def calculate_kcps_for_host(host_id: str) -> dict[str, Any]:
@@ -40,6 +70,7 @@ async def calculate_kcps_for_host(host_id: str) -> dict[str, Any]:
                 "mitre": ev.get("mitre", {}),
                 "threat_intel": ev.get("threat_intel", {}),
                 "action": ev.get("action"),
+                "severity": ev.get("severity"),
             }
         )
 
@@ -132,3 +163,84 @@ async def matrix_summary() -> dict[str, Any]:
         )
     return {"techniques": techniques}
 
+
+async def alert_feed(limit: int = 50) -> list[dict[str, Any]]:
+    """
+    Return the most recent events sorted by timestamp descending,
+    formatted as an alert feed for the SIEM dashboard.
+    """
+    db = get_database()
+    cursor = (
+        db["events"]
+        .find({})
+        .sort("timestamp", -1)
+        .limit(limit)
+    )
+    feed: list[dict[str, Any]] = []
+    async for ev in cursor:
+        feed.append(
+            {
+                "event_id": ev.get("event_id"),
+                "timestamp": ev.get("timestamp"),
+                "host_id": (ev.get("host") or {}).get("id"),
+                "host_ip": (ev.get("host") or {}).get("ip"),
+                "action": ev.get("action"),
+                "severity": ev.get("severity", "Low"),
+                "kill_chain_phase": ev.get("kill_chain_phase"),
+                "mitre_technique": (ev.get("mitre") or {}).get("technique_id"),
+                "mitre_tactic": (ev.get("mitre") or {}).get("tactic"),
+                "threat_group": (ev.get("threat_intel") or {}).get("threat_group"),
+                "is_malicious": (ev.get("threat_intel") or {}).get("is_malicious", False),
+            }
+        )
+    return feed
+
+
+async def severity_stats() -> dict[str, int]:
+    """
+    Return counts of events per severity level.
+    """
+    db = get_database()
+    pipeline = [
+        {"$group": {"_id": "$severity", "count": {"$sum": 1}}}
+    ]
+    cursor = db["events"].aggregate(pipeline)
+    stats: dict[str, int] = {"Critical": 0, "High": 0, "Medium": 0, "Low": 0}
+    async for row in cursor:
+        level = row["_id"] or "Low"
+        if level in stats:
+            stats[level] = row["count"]
+    return stats
+
+
+async def geo_heatmap() -> list[dict[str, Any]]:
+    """
+    Aggregate events by country for the geographic heatmap.
+    """
+    db = get_database()
+    pipeline = [
+        {"$match": {"geo.country_code": {"$ne": None}}},
+        {
+            "$group": {
+                "_id": "$geo.country_code",
+                "country_name": {"$first": "$geo.country_name"},
+                "lat": {"$avg": "$geo.lat"},
+                "lon": {"$avg": "$geo.lon"},
+                "count": {"$sum": 1},
+            }
+        },
+        {"$sort": {"count": -1}},
+    ]
+    cursor = db["events"].aggregate(pipeline)
+    result: list[dict[str, Any]] = []
+    async for row in cursor:
+        result.append(
+            {
+                "country_code": row["_id"],
+                "country_name": row.get("country_name", row["_id"]),
+                "lat": row["lat"],
+                "lon": row["lon"],
+                "count": row["count"],
+            }
+        )
+    return result
