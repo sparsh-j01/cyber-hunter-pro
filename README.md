@@ -118,24 +118,24 @@ Click the **⚡ Simulate Ransomware** button in the dashboard header. This gener
 
 ## Configuration
 
-Create a `.env` file in `backend/`:
+Create a `.env` file in `backend/` with your own MongoDB credentials:
 
 ```env
-MONGODB_URI=mongodb://localhost:27017
-MONGODB_DB=cyberhunterpro
+MONGODB_URI=<your-mongodb-connection-string>
+MONGODB_DB=<your-database-name>
 ```
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `MONGODB_URI` | `mongodb://mongodb:27017` | MongoDB connection string |
-| `MONGODB_DB` | `cyber_hunter` | Database name |
-| `REDIS_URL` | `redis://redis:6379/0` | Only needed if using Celery |
-| `CORS_ORIGINS` | `["http://localhost:5173"]` | Allowed CORS origins |
+| Variable | Description |
+|----------|-------------|
+| `MONGODB_URI` | Your MongoDB connection string |
+| `MONGODB_DB` | Your database name |
+| `REDIS_URL` | Only needed if using Celery |
+| `CORS_ORIGINS` | Allowed CORS origins (defaults to Vite dev server) |
 
 Frontend API base can be overridden via `frontend/.env`:
 
 ```env
-VITE_API_BASE=http://localhost:8000/api/v1
+VITE_API_BASE=<your-backend-url>/api/v1
 ```
 
 ---

@@ -8,6 +8,7 @@ __pycache__/
 .venv/
 env/
 venv/
+*.egg-info/
 
 # Backend virtualenv
 backend/.venv/
@@ -20,8 +21,21 @@ frontend/dist/
 
 # OS / editor
 .DS_Store
-.env
-.env.*
+Thumbs.db
+desktop.ini
 *.swp
 *.swo
+*~
 
+# Environment & secrets
+.env
+.env.*
+backend/.env
+
+# IDE
+.vscode/
+.idea/
+
+# Gemini / Antigravity agent data
+.gemini/
+.PROJECT_DOCUMENTATION.md

@@ -10,7 +10,7 @@ settings = get_settings()
 os.environ.setdefault("FORKED_BY_MULTIPROCESSING", "1")
 
 celery_app = Celery(
-    "cyber_hunter",
+    "cyberhunterpro",
     broker=settings.redis_url,
     backend=settings.redis_url,
 )
