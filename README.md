@@ -2,29 +2,57 @@
 
 An advanced **Cyber Threat Intelligence (CTI)** and **behavioral analytics** platform designed to close the detection gap between traditional signature-based tools and modern APT tradecraft.
 
-This implementation follows your PRD/TRD and provides:
-
 - **FastAPI backend** (Python) with MongoDB for normalized events
 - **MITRE ATT&CK–aware correlation engine** with Kill Chain Progression Score (KCPS)
-- **React + Vite + Tailwind CSS frontend** for analysts, hunters, and leadership views
-- A **simple local setup** (no Docker) so you can run everything directly.
+- **React + Vite + Tailwind CSS frontend** with 5 analyst views
+- **Ransomware simulation** engine with full kill chain event generation
+- **SIEM-style alert dashboard** with severity classification and live feed
+- **Live Cyber Threat Map** — Check Point–style dot-matrix world map with animated attack arcs
+- **Real threat dataset importers** — MITRE ATT&CK, CICIDS-2017, and live Abuse.ch feeds
 
 ---
 
-## Project structure
+## Dashboard Tabs
 
-- `backend/` – FastAPI application, data models, correlation logic
-  - `app/main.py` – FastAPI app, CORS, router wiring
-  - `app/api/routes.py` – Public REST API endpoints
-  - `app/models/events.py` – Normalized event schema (host, actor, MITRE, kill chain, intel)
-  - `app/services/correlation.py` – Kill Chain Progression Score & MITRE matrix aggregation
-  - `app/db/mongo.py` – MongoDB connection + indexes for fast pivoting
-  - `celery_app.py`, `app/workers/tasks.py` – Optional CTI enrichment scaffolding (not required to run)
-- `frontend/` – React dashboard (Vite + TypeScript + Tailwind CSS)
-  - `src/App.tsx` – Main dashboard with tabs for Intel Summary, MITRE Matrix, Kill Chain, Alerts
-  - `src/index.css` – Tailwind bootstrap and global tokens
+| Tab | Description |
+|-----|-------------|
+| **Intel Summary** | Executive overview — total events, malicious count, threat groups ranked by volume |
+| **MITRE Matrix** | ATT&CK tactic columns with technique heatmap — color intensity scales with frequency |
+| **Kill Chain** | Per-host KCPS analysis with phase scores, chronological timeline, ransomware detection, and IR report export |
+| **SIEM Alerts** | Severity summary cards (Critical/High/Medium/Low), live auto-refreshing alert feed, alert status management |
+| **Attacker Map** | Dot-matrix world map with animated attack arcs, glowing country markers, recent attacks panel, top countries & threat groups |
 
-Your original `prd.md` and `trd.md` are preserved at the repo root.
+---
+
+## Project Structure
+
+```
+cyber-hunter-pro/
+├── backend/
+│   ├── app/
+│   │   ├── main.py              # FastAPI app, CORS, router wiring
+│   │   ├── api/routes.py        # REST API endpoints (11 routes)
+│   │   ├── models/events.py     # NormalizedEvent schema (host, actor, MITRE, severity, geo)
+│   │   ├── services/correlation.py  # KCPS, matrix aggregation, alert feed, severity, heatmap
+│   │   ├── db/mongo.py          # MongoDB connection + indexes
+│   │   └── core/config.py       # Pydantic settings (env vars / .env)
+│   ├── scripts/
+│   │   ├── import_mitre_attack.py   # Dataset 1: MITRE ATT&CK Enterprise (STIX)
+│   │   ├── import_cicids_logs.py    # Dataset 2: CICIDS-2017 network intrusion logs
+│   │   └── import_abusech_feeds.py  # Dataset 3: Abuse.ch live threat feeds
+│   ├── celery_app.py            # Optional async enrichment scaffolding
+│   ├── requirements.txt
+│   └── .env                     # MongoDB connection config
+├── frontend/
+│   ├── src/
+│   │   ├── App.tsx              # Main dashboard (5 tabs + ransomware simulation)
+│   │   └── index.css            # Tailwind bootstrap + global tokens
+│   ├── package.json
+│   └── vite.config.ts
+├── prd.md                       # Product Requirements Document
+├── trd.md                       # Technical Requirements Document
+└── README.md
+```
 
 ---
 
@@ -34,220 +62,240 @@ Your original `prd.md` and `trd.md` are preserved at the repo root.
 - **Node.js** 18+ (Node 20+ recommended)
 - **MongoDB** running locally (default URI `mongodb://localhost:27017`)
 
-Redis/Celery are **optional** and not required for the basic demo.
+Redis/Celery are **optional** and not required for the demo.
 
 ---
 
-## Backend setup (FastAPI)
+## Quick Start
 
-From the project root:
+### 1. Backend
 
 ```bash
 cd backend
 python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+.venv\Scripts\activate          # On Linux/Mac: source .venv/bin/activate
 pip install -r requirements.txt
-```
-
-### Configuration
-
-The backend uses sane defaults but can be customized via environment variables (or a `.env` file in `backend/`):
-
-- `MONGODB_URI` – Mongo connection string  
-  - **Default**: `mongodb://mongodb:27017` in code, but you will typically want:
-    - `mongodb://localhost:27017`
-- `MONGODB_DB` – Database name  
-  - **Default**: `cyber_hunter`
-- `REDIS_URL` – Used only if you decide to run Celery  
-  - **Default**: `redis://redis:6379/0`
-- `CORS_ORIGINS` – JSON list of allowed origins  
-  - **Default**: `["http://localhost:5173"]` (Vite dev server)
-
-You can create a simple `.env` file, for example:
-
-```bash
-MONGODB_URI=mongodb://localhost:27017
-MONGODB_DB=cyber_hunter
-```
-
-### Running the backend
-
-With your virtual environment activated:
-
-```bash
 uvicorn app.main:app --reload --port 8000
 ```
 
-The main API will be available at `http://localhost:8000`.
+Backend runs at `http://localhost:8000` — Swagger UI at `/docs`, ReDoc at `/redoc`.
 
-FastAPI docs (helpful for exploration):
-
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
-
----
-
-## Frontend setup (React + Vite + Tailwind)
-
-From the project root:
+### 2. Frontend
 
 ```bash
 cd frontend
 npm install
-```
-
-By default, the frontend expects the backend at `http://localhost:8000/api/v1`.  
-You can override this via a Vite environment variable:
-
-- Create `frontend/.env` (not committed thanks to `.gitignore`):
-
-```bash
-VITE_API_BASE=http://localhost:8000/api/v1
-```
-
-### Running the frontend
-
-```bash
-cd frontend
 npm run dev
 ```
 
-Vite will start on `http://localhost:5173` by default.
+Frontend runs at `http://localhost:5173`.
+
+### 3. Import Real Threat Data
+
+With MongoDB and the backend running, populate the database with real-world datasets:
+
+```bash
+cd backend
+
+# Dataset 1: MITRE ATT&CK Enterprise (downloads STIX from GitHub)
+# → ~1,000 events from 20 real APT groups (APT28, APT29, Lazarus, etc.)
+python scripts/import_mitre_attack.py
+
+# Dataset 2: CICIDS-2017 network intrusion logs
+# → 590 events across 14 attack types (DoS, DDoS, SQL Injection, Brute Force, etc.)
+python scripts/import_cicids_logs.py
+
+# Dataset 3: Abuse.ch live threat feeds (Feodo Tracker + URLhaus)
+# → Real active botnet C2 IPs and malware distribution URLs
+python scripts/import_abusech_feeds.py
+```
+
+### 4. Simulate a Ransomware Attack
+
+Click the **⚡ Simulate Ransomware** button in the dashboard header. This generates 159 events covering a full kill chain (Recon → Delivery → Exploitation → Installation → C2 → Actions) culminating in 150 rapid `file_encrypt` events. Then search host `VICTIM-PC-01` in the Kill Chain tab to see ransomware detection trigger.
 
 ---
 
-## API overview
+## Configuration
 
-All endpoints are prefixed with ` /api/v1`:
+Create a `.env` file in `backend/`:
 
-- **CTI / Intel**
-  - `GET /api/v1/intel/summary`  
-    Returns aggregate counts:
-    - `total_events`
-    - `malicious_events`
-    - `threat_groups[]` – `{ threat_group, count }`
+```env
+MONGODB_URI=mongodb://localhost:27017
+MONGODB_DB=cyberhunterpro
+```
 
-- **Log ingestion**
-  - `POST /api/v1/logs/submit`  
-    Accepts a **normalized event** JSON body:
-    - `event_id` (optional – auto-generated if omitted)
-    - `timestamp` (ISO 8601)
-    - `host` – `{ id, ip, os? }`
-    - `actor` – `{ user?, process_name? }`
-    - `action` – e.g. `"process_create"`, `"network_connect"`
-    - `threat_intel` – `{ is_malicious, matched_ioc?, threat_group? }`
-    - `mitre` – `{ tactic?, technique_id?, technique_name? }`
-    - `kill_chain_phase` – `"Recon" | "Weaponization" | "Delivery" | "Exploitation" | "Installation" | "C2" | "Actions"`
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MONGODB_URI` | `mongodb://mongodb:27017` | MongoDB connection string |
+| `MONGODB_DB` | `cyber_hunter` | Database name |
+| `REDIS_URL` | `redis://redis:6379/0` | Only needed if using Celery |
+| `CORS_ORIGINS` | `["http://localhost:5173"]` | Allowed CORS origins |
 
-- **MITRE ATT&CK heatmap**
-  - `GET /api/v1/hunt/matrix`  
-    Returns grouped technique counts:
-    - `techniques[]` – `{ technique_id, tactic, count }`
+Frontend API base can be overridden via `frontend/.env`:
 
-- **Kill Chain analytics**
-  - `GET /api/v1/hunt/killchain/{host_id}`  
-    Computes Kill Chain Progression Score (KCPS) for a host and returns:
-    - `host_id`
-    - `kcps`
-    - `is_critical` (KCPS ≥ 15)
-    - `phases` – per-phase weighted scores
-    - `timeline[]` – chronological events with phase, MITRE details, threat intel, and action
-
-- **Alert lifecycle**
-  - `PUT /api/v1/alerts/{id}/status`  
-    Body: `{ "status": "False Positive" | "Investigating" | "Resolved" }`  
-    Upserts into an `alerts` collection for simple status tracking.
+```env
+VITE_API_BASE=http://localhost:8000/api/v1
+```
 
 ---
 
-## Frontend dashboard features
+## API Reference
 
-The React app (`frontend/src/App.tsx`) exposes four main views:
+All endpoints are prefixed with `/api/v1`:
 
-- **Intel Summary**
-  - Cards for total events, malicious events, and distinct threat groups
-  - Table of threat groups sorted by volume
+### CTI & Intel
 
-- **MITRE Matrix**
-  - Tactic columns with techniques and counts
-  - Color intensity per technique based on event frequency
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/intel/summary` | Aggregate counts: total events, malicious events, threat groups by volume |
+| `POST` | `/intel/stix/import` | Import a STIX 2.1 JSON bundle into `intel_feeds` collection |
 
-- **Kill Chain**
-  - Host search field (by `host.id`)
-  - KCPS badge showing whether the host is a **critical hunting lead**
-  - Per-phase score bars (Recon, Delivery, Installation, C2, Actions)
-  - Chronological timeline of mapped events (phase, technique, actor, IoCs)
+### Log Ingestion
 
-- **Alert Status**
-  - Simple form to set alert status (False Positive / Investigating / Resolved)
-  - Designed to mirror external tooling like Slack or Jira webhooks later.
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/logs/submit` | Submit a normalized event (auto-assigns severity if not set) |
 
-All styling is handled via Tailwind CSS utilities for a clean SOC-friendly dark theme.
+### MITRE ATT&CK
 
----
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/hunt/matrix` | Technique counts grouped by tactic for heatmap |
 
-## Optional: Celery & CTI enrichment
+### Kill Chain Analytics
 
-The codebase includes minimal scaffolding for asynchronous CTI enrichment:
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/hunt/killchain/{host_id}` | KCPS score, phase breakdown, timeline, ransomware detection |
+| `GET` | `/hunt/killchain/{host_id}/report` | Plain-text Incident Response report (downloadable) |
 
-- `backend/celery_app.py`
-- `backend/app/workers/tasks.py`
+### SIEM Alerts
 
-These are **not required** to run the demo. If you later want to enable them:
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/alerts/feed` | 50 most recent events as a SIEM-style alert feed |
+| `GET` | `/alerts/stats` | Severity distribution counts (Critical/High/Medium/Low) |
+| `PUT` | `/alerts/{id}/status` | Update alert status: `False Positive`, `Investigating`, `Resolved` |
 
-1. Provide a working `REDIS_URL` (or RabbitMQ broker if you change Celery config).
-2. Run a worker, for example:
+### Geographic Heatmap
 
-   ```bash
-   cd backend
-   source .venv/bin/activate
-   celery -A celery_app.celery_app worker --loglevel=info
-   ```
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/hunt/heatmap` | Events aggregated by country with lat/lon and counts |
 
-You can then wire tasks (e.g., `enrich_event_with_cti.delay(event_id)`) into the ingestion path.
+### Simulation
 
----
-
-## How to smoke test quickly
-
-With **MongoDB**, **backend**, and **frontend** running:
-
-1. **Submit a sample event**:
-
-   ```bash
-   curl -X POST http://localhost:8000/api/v1/logs/submit \
-     -H "Content-Type: application/json" \
-     -d '{
-       "timestamp": "2025-01-01T10:00:00Z",
-       "host": { "id": "WIN-DC-01", "ip": "10.0.0.5", "os": "win22" },
-       "actor": { "user": "admin", "process_name": "powershell.exe" },
-       "action": "process_create",
-       "threat_intel": { "is_malicious": true, "matched_ioc": "hash123", "threat_group": "APT41" },
-       "mitre": { "tactic": "Execution", "technique_id": "T1059.001", "technique_name": "PowerShell" },
-       "kill_chain_phase": "Installation"
-     }'
-   ```
-
-2. **Open the dashboard** at `http://localhost:5173`:
-   - Check **Intel Summary** for counts and threat group `APT41`.
-   - Check **MITRE Matrix** for technique `T1059.001`.
-   - Use **Kill Chain** with host `WIN-DC-01` to see the KCPS and timeline.
-
-This gives you end-to-end validation that ingestion, storage, correlation, and visualization are working.
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/simulate/ransomware` | Generate a full kill chain ransomware attack (159 events) |
 
 ---
 
-## GitHub readiness
+## Normalized Event Schema
 
-This repo is structured to be **ready for GitHub**:
+```json
+{
+  "event_id": "uuid",
+  "timestamp": "2025-01-01T10:00:00Z",
+  "host": { "id": "WIN-DC-01", "ip": "10.0.0.5", "os": "win22" },
+  "actor": { "user": "admin", "process_name": "powershell.exe" },
+  "action": "process_create",
+  "threat_intel": {
+    "is_malicious": true,
+    "matched_ioc": "hash123",
+    "threat_group": "APT28"
+  },
+  "mitre": {
+    "tactic": "Execution",
+    "technique_id": "T1059.001",
+    "technique_name": "PowerShell"
+  },
+  "kill_chain_phase": "Installation",
+  "severity": "High",
+  "geo": {
+    "lat": 55.75,
+    "lon": 37.62,
+    "country_code": "RU",
+    "country_name": "Russia"
+  }
+}
+```
 
-- Clean separation between `backend/` and `frontend/`
-- `.gitignore` excluding virtual environments, `node_modules`, build outputs, and secret `.env` files
-- Clear README with:
-  - Architecture summary
-  - Local setup instructions
-  - API contract
-  - Smoke test steps
+---
 
-You can now initialize a Git repo (if not already done at a higher level), create a branch, and push this project to GitHub.
+## Real Threat Datasets
 
+### Dataset 1: MITRE ATT&CK Enterprise
+
+- **Source**: [github.com/mitre/cti](https://github.com/mitre/cti) (STIX 2.1 JSON)
+- **Script**: `backend/scripts/import_mitre_attack.py`
+- **What it does**: Downloads the full Enterprise ATT&CK dataset, parses APT groups (intrusion-sets), techniques (attack-patterns), and their relationships, then generates realistic events mapped to kill chain phases with GeoIP data
+- **Output**: ~1,000 events from 20 APT groups across 12 countries
+
+### Dataset 2: CICIDS-2017 Network Intrusion Logs
+
+- **Source**: Modeled after [CIC-IDS-2017](https://www.unb.ca/cic/datasets/ids-2017.html) by the Canadian Institute for Cybersecurity
+- **Script**: `backend/scripts/import_cicids_logs.py`
+- **What it does**: Generates synthetic network intrusion events matching all 14 CICIDS attack categories, mapped to MITRE techniques with flow metadata
+- **Attack types**: DoS (Hulk/Slowhttptest/Slowloris/GoldenEye), DDoS, PortScan, FTP-Patator, SSH-Patator, Bot, Web Attack (Brute Force/SQL Injection/XSS), Infiltration, Heartbleed
+- **Output**: 590 events across 14 attack types from 12 attacker countries
+
+### Dataset 3: Abuse.ch Live Threat Feeds
+
+- **Source**: [Feodo Tracker](https://feodotracker.abuse.ch) + [URLhaus](https://urlhaus.abuse.ch) (live feeds)
+- **Script**: `backend/scripts/import_abusech_feeds.py`
+- **What it does**: Downloads **real, currently-active** botnet C2 server IPs and malware distribution URLs, converts them into normalized events with GeoIP data
+- **Threat families**: Dridex, Emotet, TrickBot, QakBot, BazarLoader, Pikabot
+- **Output**: 100+ events with real IoCs from 15 countries
+
+---
+
+## Key Features
+
+### Ransomware Detection
+
+The correlation engine includes automatic ransomware detection. When a host generates ≥10 `file_encrypt` events within 60 seconds, the system flags `ransomware_suspected: true` with a detailed reason in the Kill Chain response.
+
+### Severity Classification
+
+Events are automatically classified using rule-based severity assignment:
+
+- **Critical**: `file_encrypt` + Actions phase, C2 beacons, data exfiltration
+- **High**: Persistence mechanisms, credential access, lateral movement
+- **Medium**: Initial access, execution, delivery
+- **Low**: Reconnaissance, discovery, benign traffic
+
+### Kill Chain Progression Score (KCPS)
+
+Each kill chain phase has a weight (Recon: 1, Delivery: 2, Exploitation: 3, Installation: 4, C2: 5, Actions: 6). KCPS ≥ 15 flags the host as a **critical hunting lead**.
+
+---
+
+## Smoke Test
+
+With MongoDB, backend, and frontend running:
+
+1. Click **⚡ Simulate Ransomware** in the header
+2. Check **Intel Summary** — see APT28 threat group and event counts
+3. Check **MITRE Matrix** — see real technique IDs (T1059, T1486, T1071, etc.)
+4. Go to **Kill Chain** → search `VICTIM-PC-01` → see ransomware detection
+5. Check **SIEM Alerts** — severity cards and live alert feed
+6. Check **Attacker Map** — animated arcs from attacker countries to target
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Backend | Python 3.10+, FastAPI, Pydantic, Motor (async MongoDB) |
+| Database | MongoDB |
+| Frontend | React 18, TypeScript, Vite, Tailwind CSS |
+| Optional | Celery + Redis (async CTI enrichment) |
+
+---
+
+## License
+
+This project is for academic and research purposes.

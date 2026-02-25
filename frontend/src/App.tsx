@@ -88,39 +88,83 @@ type TabId = 'intel' | 'matrix' | 'killchain' | 'siem' | 'heatmap'
 
 const SEV_COLORS: Record<string, { bg: string; text: string; ring: string; dot: string }> = {
   Critical: { bg: 'bg-red-500/10', text: 'text-red-300', ring: 'ring-red-500/50', dot: 'bg-red-400' },
-  High:     { bg: 'bg-orange-500/10', text: 'text-orange-300', ring: 'ring-orange-500/50', dot: 'bg-orange-400' },
-  Medium:   { bg: 'bg-yellow-500/10', text: 'text-yellow-300', ring: 'ring-yellow-500/50', dot: 'bg-yellow-400' },
-  Low:      { bg: 'bg-slate-500/10', text: 'text-slate-300', ring: 'ring-slate-500/50', dot: 'bg-slate-400' },
+  High: { bg: 'bg-orange-500/10', text: 'text-orange-300', ring: 'ring-orange-500/50', dot: 'bg-orange-400' },
+  Medium: { bg: 'bg-yellow-500/10', text: 'text-yellow-300', ring: 'ring-yellow-500/50', dot: 'bg-yellow-400' },
+  Low: { bg: 'bg-slate-500/10', text: 'text-slate-300', ring: 'ring-slate-500/50', dot: 'bg-slate-400' },
 }
 
 function sevStyle(sev: string) {
   return SEV_COLORS[sev] ?? SEV_COLORS.Low
 }
 
-/* ─── World map SVG paths (simplified) ─────────────────────────────────── */
+/* ─── World map: continent SVG paths + country centers ────────────────── */
+/* Equirectangular projection – viewBox 0 0 1000 500 */
+/* x = (lon + 180) / 360 * 1000,  y = (90 - lat) / 180 * 500 */
 
-const COUNTRY_PATHS: Record<string, { d: string; cx: number; cy: number; name: string }> = {
-  RU: { d: 'M480,60 L560,55 590,70 600,90 580,100 560,95 520,90 500,80 490,70Z', cx: 540, cy: 77, name: 'Russia' },
-  CN: { d: 'M540,120 L570,115 585,125 580,140 565,150 545,145 535,135Z', cx: 558, cy: 132, name: 'China' },
-  US: { d: 'M100,100 L170,95 180,110 175,130 150,135 120,130 105,120Z', cx: 140, cy: 115, name: 'United States' },
-  KP: { d: 'M575,108 L585,105 590,112 585,118 578,115Z', cx: 582, cy: 112, name: 'North Korea' },
-  IR: { d: 'M470,130 L490,125 500,135 495,145 480,148 470,140Z', cx: 483, cy: 137, name: 'Iran' },
-  GB: { d: 'M370,75 L378,70 382,78 380,86 374,88 370,82Z', cx: 376, cy: 79, name: 'United Kingdom' },
-  DE: { d: 'M390,78 L400,75 405,83 402,92 395,94 390,87Z', cx: 397, cy: 84, name: 'Germany' },
-  ID: { d: 'M550,190 L580,185 590,195 575,205 555,200Z', cx: 570, cy: 195, name: 'Indonesia' },
-  IN: { d: 'M510,135 L530,128 535,145 525,165 510,160 505,148Z', cx: 520, cy: 148, name: 'India' },
-  BR: { d: 'M200,190 L230,175 245,195 235,220 210,225 195,210Z', cx: 220, cy: 200, name: 'Brazil' },
-  AU: { d: 'M570,220 L610,215 620,235 605,250 575,245 565,232Z', cx: 593, cy: 233, name: 'Australia' },
-  JP: { d: 'M590,105 L597,100 600,108 596,115 590,112Z', cx: 595, cy: 108, name: 'Japan' },
-  FR: { d: 'M378,88 L390,85 394,94 388,100 380,98 376,93Z', cx: 385, cy: 93, name: 'France' },
-  ZA: { d: 'M420,230 L440,225 445,240 435,250 420,245Z', cx: 432, cy: 238, name: 'South Africa' },
-  CA: { d: 'M90,55 L180,50 190,70 175,85 100,90 85,75Z', cx: 140, cy: 70, name: 'Canada' },
-  MX: { d: 'M100,135 L135,130 140,145 125,155 105,150Z', cx: 120, cy: 143, name: 'Mexico' },
-  KR: { d: 'M580,115 L588,112 592,120 586,125 580,122Z', cx: 585, cy: 118, name: 'South Korea' },
-  UA: { d: 'M425,78 L445,75 450,85 442,92 428,90Z', cx: 438, cy: 84, name: 'Ukraine' },
-  SA: { d: 'M460,145 L478,140 482,155 470,162 458,156Z', cx: 470, cy: 151, name: 'Saudi Arabia' },
-  NG: { d: 'M395,175 L410,170 415,182 405,190 395,185Z', cx: 405, cy: 180, name: 'Nigeria' },
+const CONTINENT_PATHS = [
+  // North America
+  'M38,69 L48,97 72,103 111,83 153,114 172,158 194,186 233,203 250,211 267,214 275,228 278,214 278,181 292,153 306,133 319,119 342,103 347,89 319,78 306,56 264,42 222,42 139,53 125,58Z',
+  // Greenland
+  'M303,33 L333,19 361,22 372,33 367,50 342,58 319,53Z',
+  // South America
+  'M222,222 L236,211 264,219 292,222 319,214 350,217 394,250 403,264 394,292 381,319 356,344 328,369 311,389 292,392 283,378 289,356 292,342 278,314 264,283 244,256 228,242Z',
+  // Europe
+  'M444,58 L458,53 472,58 486,56 497,61 514,64 525,56 542,50 558,50 578,56 592,64 583,78 581,92 572,103 569,119 564,128 556,131 544,139 531,142 522,133 514,125 508,117 497,114 489,119 486,128 478,131 472,136 467,131 458,131 453,122 453,114 444,106 439,97 439,89 433,81 433,72 439,64Z',
+  // Africa
+  'M453,147 L464,142 481,142 500,150 514,153 528,156 539,161 547,172 556,186 561,200 567,214 569,228 564,244 558,261 553,278 544,292 536,303 528,314 519,328 508,336 497,342 486,344 478,339 467,331 458,325 450,319 439,311 431,300 425,289 419,281 414,267 411,253 408,242 411,228 414,217 419,206 425,194 431,183 439,172 444,158Z',
+  // Asia mainland
+  'M564,128 L575,119 583,108 592,97 600,83 611,75 625,69 636,64 650,58 669,56 689,56 706,58 722,64 742,69 758,72 775,69 789,64 806,58 822,53 836,50 853,47 869,47 881,50 892,56 900,64 908,72 917,78 925,86 928,97 925,106 917,117 908,125 903,136 903,147 897,158 889,164 881,172 872,178 864,183 856,186 847,189 836,192 825,194 808,194 794,194 783,197 772,200 764,203 753,208 747,214 742,219 736,222 725,222 714,219 706,214 700,206 694,200 689,194 681,189 672,183 661,175 650,167 644,158 636,147 625,139 614,136 603,133 592,131 578,131Z',
+  // India
+  'M636,147 L642,158 650,167 658,178 667,186 675,192 681,200 686,211 689,222 686,233 681,242 675,250 667,253 658,250 650,244 647,236 644,228 642,219 639,208 636,197 631,183 628,172 625,161 628,153Z',
+  // SE Asia peninsula
+  'M700,206 L706,214 711,222 714,228 717,236 714,244 711,250 706,256 700,253 697,247 694,239 694,231 694,222 697,214Z',
+  // Japan
+  'M856,103 L861,97 867,92 872,97 875,106 872,117 867,125 861,119 858,111Z',
+  // Indonesian archipelago
+  'M731,264 L744,258 758,256 772,258 786,261 797,264 808,267 803,275 792,278 778,278 764,275 750,272 739,269Z',
+  // Australia
+  'M808,292 L822,283 839,278 858,278 878,281 897,286 911,292 919,303 922,319 917,336 906,350 892,358 875,361 858,361 842,356 828,347 817,336 811,322 808,308Z',
+  // UK + Ireland
+  'M442,83 L447,78 453,75 456,81 453,89 447,92 442,89Z',
+  // New Zealand
+  'M933,356 L936,347 939,342 942,350 939,361 936,364Z',
+]
+
+// Country center coordinates (projected) for markers & arcs
+const COUNTRY_CENTERS: Record<string, { x: number; y: number; name: string }> = {
+  US: { x: 153, y: 119, name: 'United States' },
+  CA: { x: 175, y: 69, name: 'Canada' },
+  MX: { x: 194, y: 175, name: 'Mexico' },
+  BR: { x: 328, y: 308, name: 'Brazil' },
+  GB: { x: 447, y: 83, name: 'United Kingdom' },
+  FR: { x: 478, y: 122, name: 'France' },
+  DE: { x: 492, y: 103, name: 'Germany' },
+  UA: { x: 556, y: 92, name: 'Ukraine' },
+  RU: { x: 756, y: 64, name: 'Russia' },
+  CN: { x: 792, y: 153, name: 'China' },
+  IN: { x: 658, y: 200, name: 'India' },
+  JP: { x: 864, y: 108, name: 'Japan' },
+  KR: { x: 847, y: 131, name: 'South Korea' },
+  KP: { x: 842, y: 119, name: 'North Korea' },
+  IR: { x: 625, y: 150, name: 'Iran' },
+  SA: { x: 586, y: 172, name: 'Saudi Arabia' },
+  AU: { x: 872, y: 322, name: 'Australia' },
+  ID: { x: 772, y: 267, name: 'Indonesia' },
+  ZA: { x: 492, y: 328, name: 'South Africa' },
+  NG: { x: 458, y: 225, name: 'Nigeria' },
+  NL: { x: 481, y: 94, name: 'Netherlands' },
+  CH: { x: 486, y: 111, name: 'Switzerland' },
+  KE: { x: 544, y: 253, name: 'Kenya' },
+  SG: { x: 767, y: 247, name: 'Singapore' },
+  AT: { x: 497, y: 106, name: 'Austria' },
+  PK: { x: 636, y: 164, name: 'Pakistan' },
+  TN: { x: 458, y: 158, name: 'Tunisia' },
+  RO: { x: 528, y: 100, name: 'Romania' },
+  HK: { x: 806, y: 175, name: 'Hong Kong' },
 }
+
+// Our network target (center of our org for attack arcs)
+const TARGET_POS = { x: 153, y: 119 } // US-based org
 
 /* ─── Main App ─────────────────────────────────────────────────────────── */
 
@@ -236,7 +280,7 @@ function App() {
     if (activeTab === 'intel') void fetchIntelSummary()
     if (activeTab === 'matrix') void fetchMatrix()
     if (activeTab === 'siem') void fetchSiemData()
-    if (activeTab === 'heatmap') void fetchHeatmap()
+    if (activeTab === 'heatmap') { void fetchHeatmap(); void fetchSiemData() }
   }, [activeTab])
 
   // Auto-refresh SIEM tab every 10s
@@ -494,11 +538,10 @@ function App() {
                       <p className="text-lg font-semibold text-emerald-400">{killchain.kcps.toFixed(1)}</p>
                     </div>
                     <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ring-1 ${
-                        killchain.is_critical
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ring-1 ${killchain.is_critical
                           ? 'bg-red-500/10 text-red-300 ring-red-500/50'
                           : 'bg-emerald-500/10 text-emerald-300 ring-emerald-500/40'
-                      }`}
+                        }`}
                     >
                       {killchain.is_critical ? 'Critical hunting lead' : 'Under threshold'}
                     </span>
@@ -751,133 +794,256 @@ function App() {
           </section>
         )}
 
-        {/* ── Attacker Heatmap ───────────────────────────────────────── */}
+        {/* ── Attacker Heatmap — Check Point-style ─────────────────── */}
         {activeTab === 'heatmap' && (
-          <section className="space-y-6">
-            <div>
-              <h2 className="text-lg font-semibold">Attacker Activity Heatmap</h2>
-              <p className="text-sm text-slate-400">
-                Geographic distribution of attack origins. Intensity reflects event volume.
+          <section>
+            {heatmapLoading && !heatmapData.length && <p className="text-sm text-slate-400 py-4">Loading threat map…</p>}
+            {heatmapError && <p className="text-sm text-red-400 py-4">Error: {heatmapError}</p>}
+
+            {/* Header */}
+            <div className="text-center mb-4">
+              <h2 className="text-xl font-bold tracking-wider text-slate-100">LIVE CYBER THREAT MAP</h2>
+              <p className="text-sm font-semibold text-rose-400 mt-1">
+                {heatmapData.reduce((s, c) => s + c.count, 0).toLocaleString()} ATTACKS TRACKED
               </p>
             </div>
 
-            {heatmapLoading && <p className="text-sm text-slate-400">Loading heatmap…</p>}
-            {heatmapError && <p className="text-sm text-red-400">Error: {heatmapError}</p>}
+            {/* 3 column layout: Feed | Map | Stats */}
+            <div className="grid gap-4" style={{ gridTemplateColumns: '260px 1fr 230px' }}>
 
-            {heatmapData.length === 0 && !heatmapLoading && (
-              <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-6 py-12 text-center">
-                <p className="text-slate-400 text-sm">No geo-tagged events yet. Run the ransomware simulation to generate data.</p>
-              </div>
-            )}
-
-            {heatmapData.length > 0 && (
-              <>
-                {/* SVG World Map */}
-                <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 relative">
-                  <svg viewBox="0 0 700 300" className="w-full h-auto" style={{ minHeight: '300px' }}>
-                    {/* Ocean background */}
-                    <rect width="700" height="300" fill="#0f172a" rx="8" />
-
-                    {/* Grid lines */}
-                    {[0, 100, 200, 300, 400, 500, 600, 700].map((x) => (
-                      <line key={`vg-${x}`} x1={x} y1="0" x2={x} y2="300" stroke="#1e293b" strokeWidth="0.5" />
-                    ))}
-                    {[0, 75, 150, 225, 300].map((y) => (
-                      <line key={`hg-${y}`} x1="0" y1={y} x2="700" y2={y} stroke="#1e293b" strokeWidth="0.5" />
-                    ))}
-
-                    {/* Continent outlines */}
-                    {Object.entries(COUNTRY_PATHS).map(([code, info]) => {
-                      const country = heatmapData.find((c) => c.country_code === code)
-                      const maxCount = Math.max(...heatmapData.map((c) => c.count), 1)
-                      const intensity = country ? country.count / maxCount : 0
-
-                      let fill = '#1e293b'
-                      if (intensity > 0.7) fill = '#dc2626'
-                      else if (intensity > 0.4) fill = '#ea580c'
-                      else if (intensity > 0.15) fill = '#d97706'
-                      else if (intensity > 0) fill = '#854d0e'
-
-                      return (
-                        <g key={code}>
-                          <path
-                            d={info.d}
-                            fill={fill}
-                            stroke="#334155"
-                            strokeWidth="0.8"
-                            className="transition-all duration-300 cursor-pointer"
-                            onMouseEnter={() => country && setHoveredCountry(country)}
-                            onMouseLeave={() => setHoveredCountry(null)}
-                            opacity={intensity > 0 ? 0.9 : 0.4}
-                          />
-                          {/* Pulse dot for active countries */}
-                          {country && (
-                            <>
-                              <circle cx={info.cx} cy={info.cy} r={Math.max(3, Math.min(10, intensity * 12))} fill={fill} opacity="0.4">
-                                <animate attributeName="r" values={`${Math.max(3, intensity * 8)};${Math.max(6, intensity * 14)};${Math.max(3, intensity * 8)}`} dur="2s" repeatCount="indefinite" />
-                                <animate attributeName="opacity" values="0.4;0.1;0.4" dur="2s" repeatCount="indefinite" />
-                              </circle>
-                              <circle
-                                cx={info.cx} cy={info.cy}
-                                r={Math.max(2, Math.min(6, intensity * 8))}
-                                fill={fill}
-                                stroke="#fff"
-                                strokeWidth="0.5"
-                                className="cursor-pointer"
-                                onMouseEnter={() => setHoveredCountry(country)}
-                                onMouseLeave={() => setHoveredCountry(null)}
-                              />
-                            </>
-                          )}
-                        </g>
-                      )
-                    })}
-                  </svg>
-
-                  {/* Tooltip */}
-                  {hoveredCountry && (
-                    <div className="absolute top-4 right-4 rounded-lg border border-slate-700 bg-slate-900/95 px-4 py-3 shadow-xl backdrop-blur">
-                      <p className="text-sm font-semibold text-slate-100">{hoveredCountry.country_name}</p>
-                      <p className="text-xs text-slate-400">Code: {hoveredCountry.country_code}</p>
-                      <p className="mt-1 text-lg font-bold text-red-400">{hoveredCountry.count.toLocaleString()}</p>
-                      <p className="text-[10px] text-slate-500">attack events</p>
-                    </div>
+              {/* ─ Left panel: Recent Attacks ─ */}
+              <div className="rounded-xl border border-slate-800 bg-slate-900/80 flex flex-col overflow-hidden">
+                <div className="border-b border-slate-800 px-3 py-2">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-rose-400">Recent Attacks</p>
+                </div>
+                <div className="flex-1 overflow-y-auto max-h-[420px] divide-y divide-slate-800/50">
+                  {alertFeed.slice(0, 20).map((a, i) => {
+                    const s = sevStyle(a.severity)
+                    return (
+                      <div key={a.event_id ?? i} className="px-3 py-2 hover:bg-slate-800/40 transition">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
+                          <p className="text-[11px] font-semibold text-slate-100 truncate">{a.action ?? 'unknown'}</p>
+                        </div>
+                        <p className="text-[10px] text-slate-500 mt-0.5 truncate">
+                          {new Date(a.timestamp).toLocaleTimeString()}{' '}
+                          {a.host_id ?? '—'}
+                          {a.threat_group ? ` → ${a.threat_group}` : ''}
+                        </p>
+                      </div>
+                    )
+                  })}
+                  {alertFeed.length === 0 && (
+                    <p className="px-3 py-6 text-[10px] text-slate-500 text-center">No recent alerts</p>
                   )}
                 </div>
+              </div>
 
-                {/* Country table */}
-                <div className="rounded-xl border border-slate-800 bg-slate-900/60">
-                  <div className="border-b border-slate-800 px-4 py-3">
-                    <h3 className="text-sm font-semibold text-slate-200">Attack Origins by Country</h3>
+              {/* ─ Center: World Map SVG ─ */}
+              <div className="rounded-xl border border-slate-800 bg-[#0a0e1a] relative overflow-hidden" style={{ minHeight: '420px' }}>
+                <svg viewBox="0 0 1000 500" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
+                  <defs>
+                    {/* Dot pattern for continents */}
+                    <pattern id="landDots" x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse">
+                      <circle cx="5" cy="5" r="1.2" fill="rgba(148,163,184,0.35)" />
+                    </pattern>
+                    {/* Glow filter for attack markers */}
+                    <filter id="attackGlow" x="-100%" y="-100%" width="300%" height="300%">
+                      <feGaussianBlur stdDeviation="6" result="blur" />
+                      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                    </filter>
+                    <filter id="arcGlow" x="-50%" y="-50%" width="200%" height="200%">
+                      <feGaussianBlur stdDeviation="2" result="blur" />
+                      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                    </filter>
+                    {/* Subtle grid pattern for ocean */}
+                    <pattern id="oceanGrid" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+                      <circle cx="10" cy="10" r="0.4" fill="rgba(51,65,85,0.3)" />
+                    </pattern>
+                  </defs>
+
+                  {/* Ocean background with subtle dot grid */}
+                  <rect width="1000" height="500" fill="#0a0e1a" />
+                  <rect width="1000" height="500" fill="url(#oceanGrid)" />
+
+                  {/* Continents filled with dot pattern */}
+                  {CONTINENT_PATHS.map((d, i) => (
+                    <path key={i} d={d} fill="url(#landDots)" stroke="rgba(100,116,139,0.15)" strokeWidth="0.5" />
+                  ))}
+
+                  {/* Attack arcs from each country to target */}
+                  {heatmapData.map((c) => {
+                    const src = COUNTRY_CENTERS[c.country_code]
+                    if (!src) return null
+                    const tgt = TARGET_POS
+                    // Skip if source is the target
+                    if (Math.abs(src.x - tgt.x) < 20 && Math.abs(src.y - tgt.y) < 20) return null
+                    const maxCount = Math.max(...heatmapData.map((x) => x.count), 1)
+                    const intensity = c.count / maxCount
+                    // Quadratic bezier arc control point (curve upward)
+                    const mx = (src.x + tgt.x) / 2
+                    const my = Math.min(src.y, tgt.y) - 40 - intensity * 60
+                    const arcPath = `M${src.x},${src.y} Q${mx},${my} ${tgt.x},${tgt.y}`
+                    const dur = (2 + Math.random() * 3).toFixed(1)
+                    return (
+                      <g key={`arc-${c.country_code}`} filter="url(#arcGlow)">
+                        {/* Faint trail */}
+                        <path d={arcPath} fill="none" stroke="rgba(251,146,60,0.15)" strokeWidth="1" />
+                        {/* Animated dot along path */}
+                        <circle r="3" fill="#fb923c">
+                          <animateMotion dur={`${dur}s`} repeatCount="indefinite" path={arcPath} />
+                          <animate attributeName="opacity" values="1;0.3;1" dur={`${dur}s`} repeatCount="indefinite" />
+                        </circle>
+                        {/* Second dot staggered */}
+                        <circle r="2" fill="#fbbf24">
+                          <animateMotion dur={`${dur}s`} repeatCount="indefinite" path={arcPath} begin={`${(parseFloat(dur) / 2).toFixed(1)}s`} />
+                          <animate attributeName="opacity" values="0.8;0.2;0.8" dur={`${dur}s`} repeatCount="indefinite" begin={`${(parseFloat(dur) / 2).toFixed(1)}s`} />
+                        </circle>
+                      </g>
+                    )
+                  })}
+
+                  {/* Country attack markers */}
+                  {heatmapData.map((c) => {
+                    const pos = COUNTRY_CENTERS[c.country_code]
+                    if (!pos) return null
+                    const maxCount = Math.max(...heatmapData.map((x) => x.count), 1)
+                    const intensity = c.count / maxCount
+                    const r = 3 + intensity * 8
+                    const color = intensity > 0.6 ? '#ef4444' : intensity > 0.3 ? '#f97316' : '#eab308'
+                    return (
+                      <g
+                        key={`marker-${c.country_code}`}
+                        filter="url(#attackGlow)"
+                        className="cursor-pointer"
+                        onMouseEnter={() => setHoveredCountry(c)}
+                        onMouseLeave={() => setHoveredCountry(null)}
+                      >
+                        {/* Pulse ring */}
+                        <circle cx={pos.x} cy={pos.y} r={r} fill="none" stroke={color} strokeWidth="0.8" opacity="0.5">
+                          <animate attributeName="r" values={`${r};${r + 8};${r}`} dur="2.5s" repeatCount="indefinite" />
+                          <animate attributeName="opacity" values="0.5;0;0.5" dur="2.5s" repeatCount="indefinite" />
+                        </circle>
+                        {/* Solid center */}
+                        <circle cx={pos.x} cy={pos.y} r={Math.max(2.5, r * 0.5)} fill={color} opacity="0.9" />
+                        {/* Country label */}
+                        <text x={pos.x} y={pos.y - r - 4} textAnchor="middle" fill="#e2e8f0" fontSize="8" fontWeight="500" opacity="0.8">
+                          {c.country_code}
+                        </text>
+                      </g>
+                    )
+                  })}
+
+                  {/* Target marker (our network) */}
+                  <g filter="url(#attackGlow)">
+                    <circle cx={TARGET_POS.x} cy={TARGET_POS.y} r="6" fill="none" stroke="#22d3ee" strokeWidth="1.5" opacity="0.7">
+                      <animate attributeName="r" values="6;14;6" dur="3s" repeatCount="indefinite" />
+                      <animate attributeName="opacity" values="0.7;0;0.7" dur="3s" repeatCount="indefinite" />
+                    </circle>
+                    <circle cx={TARGET_POS.x} cy={TARGET_POS.y} r="4" fill="#22d3ee" opacity="0.9" />
+                    <text x={TARGET_POS.x} y={TARGET_POS.y - 12} textAnchor="middle" fill="#22d3ee" fontSize="7" fontWeight="600">TARGET</text>
+                  </g>
+                </svg>
+
+                {/* Tooltip overlay */}
+                {hoveredCountry && (
+                  <div className="absolute top-3 left-3 rounded-lg border border-rose-500/30 bg-slate-950/95 px-4 py-3 shadow-2xl backdrop-blur-sm">
+                    <p className="text-sm font-bold text-slate-100">{hoveredCountry.country_name}</p>
+                    <p className="mt-1 text-xl font-black text-rose-400">{hoveredCountry.count.toLocaleString()}</p>
+                    <p className="text-[10px] text-slate-500">attack events</p>
                   </div>
-                  <div className="divide-y divide-slate-800">
-                    {heatmapData.map((c) => {
-                      const maxCount = Math.max(...heatmapData.map((x) => x.count), 1)
-                      const pct = (c.count / maxCount) * 100
-                      return (
-                        <div key={c.country_code} className="flex items-center gap-4 px-4 py-3">
-                          <div className="w-8 text-center">
-                            <span className="text-sm">{countryFlag(c.country_code)}</span>
-                          </div>
-                          <div className="flex-1">
-                            <p className="text-sm font-medium text-slate-100">{c.country_name}</p>
-                            <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
-                              <div
-                                className="h-full rounded-full bg-gradient-to-r from-orange-500 to-red-500 transition-all duration-500"
-                                style={{ width: `${pct}%` }}
-                              />
-                            </div>
-                          </div>
-                          <span className="rounded-full bg-red-500/10 px-3 py-1 text-xs font-semibold text-red-300 ring-1 ring-red-500/40">
-                            {c.count.toLocaleString()}
-                          </span>
-                        </div>
-                      )
-                    })}
+                )}
+
+                {/* Legend */}
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-5 rounded-full bg-slate-950/80 px-5 py-1.5 backdrop-blur-sm border border-slate-800">
+                  <span className="flex items-center gap-1.5 text-[10px] text-slate-300">
+                    <span className="h-2 w-2 rounded-full bg-red-500" /> Critical
+                  </span>
+                  <span className="flex items-center gap-1.5 text-[10px] text-slate-300">
+                    <span className="h-2 w-2 rounded-full bg-orange-500" /> High
+                  </span>
+                  <span className="flex items-center gap-1.5 text-[10px] text-slate-300">
+                    <span className="h-2 w-2 rounded-full bg-yellow-500" /> Medium
+                  </span>
+                  <span className="flex items-center gap-1.5 text-[10px] text-slate-300">
+                    <span className="h-2 w-2 rounded-full bg-cyan-400" /> Target
+                  </span>
+                </div>
+              </div>
+
+              {/* ─ Right panel: Stats ─ */}
+              <div className="space-y-4">
+                {/* Top attacker countries */}
+                <div className="rounded-xl border border-slate-800 bg-slate-900/80 overflow-hidden">
+                  <div className="border-b border-slate-800 px-3 py-2">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-rose-400">Top Attacker Countries</p>
+                  </div>
+                  <div className="divide-y divide-slate-800/50">
+                    {[...heatmapData].sort((a, b) => b.count - a.count).slice(0, 8).map((c) => (
+                      <div key={c.country_code} className="flex items-center gap-2 px-3 py-2">
+                        <span className="text-xs">{countryFlag(c.country_code)}</span>
+                        <span className="flex-1 text-[11px] text-slate-200 truncate">{c.country_name}</span>
+                        <span className="text-[10px] font-bold text-rose-300">{c.count.toLocaleString()}</span>
+                      </div>
+                    ))}
+                    {heatmapData.length === 0 && (
+                      <p className="px-3 py-4 text-[10px] text-slate-500 text-center">No data</p>
+                    )}
                   </div>
                 </div>
-              </>
-            )}
+
+                {/* Top attack types (from alert feed) */}
+                <div className="rounded-xl border border-slate-800 bg-slate-900/80 overflow-hidden">
+                  <div className="border-b border-slate-800 px-3 py-2">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-rose-400">Top Attack Types</p>
+                  </div>
+                  <div className="divide-y divide-slate-800/50">
+                    {(() => {
+                      const counts: Record<string, number> = {}
+                      alertFeed.forEach((a) => {
+                        const k = a.action ?? 'unknown'
+                        counts[k] = (counts[k] || 0) + 1
+                      })
+                      return Object.entries(counts)
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 6)
+                        .map(([action, count]) => (
+                          <div key={action} className="flex items-center gap-2 px-3 py-2">
+                            <span className="h-1.5 w-1.5 rounded-full bg-orange-400" />
+                            <span className="flex-1 text-[11px] text-slate-200 truncate">{action.replace(/_/g, ' ')}</span>
+                            <span className="text-[10px] font-bold text-orange-300">{count}</span>
+                          </div>
+                        ))
+                    })()}
+                  </div>
+                </div>
+
+                {/* Top threat groups */}
+                <div className="rounded-xl border border-slate-800 bg-slate-900/80 overflow-hidden">
+                  <div className="border-b border-slate-800 px-3 py-2">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-rose-400">Top Threat Groups</p>
+                  </div>
+                  <div className="divide-y divide-slate-800/50">
+                    {(() => {
+                      const counts: Record<string, number> = {}
+                      alertFeed.forEach((a) => {
+                        if (a.threat_group) counts[a.threat_group] = (counts[a.threat_group] || 0) + 1
+                      })
+                      return Object.entries(counts)
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 6)
+                        .map(([group, count]) => (
+                          <div key={group} className="flex items-center gap-2 px-3 py-2">
+                            <span className="h-1.5 w-1.5 rounded-full bg-purple-400" />
+                            <span className="flex-1 text-[11px] text-slate-200 truncate">{group}</span>
+                            <span className="text-[10px] font-bold text-purple-300">{count}</span>
+                          </div>
+                        ))
+                    })()}
+                  </div>
+                </div>
+              </div>
+            </div>
           </section>
         )}
       </main>
@@ -910,11 +1076,10 @@ function TabButton({ id, label, activeTab, setActiveTab }: TabButtonProps) {
     <button
       type="button"
       onClick={() => setActiveTab(id)}
-      className={`flex-1 rounded-md px-3 py-2 text-xs font-medium transition ${
-        isActive
+      className={`flex-1 rounded-md px-3 py-2 text-xs font-medium transition ${isActive
           ? 'bg-slate-800 text-slate-50 shadow-sm'
           : 'bg-transparent text-slate-400 hover:bg-slate-800/60 hover:text-slate-100'
-      }`}
+        }`}
     >
       {label}
     </button>
