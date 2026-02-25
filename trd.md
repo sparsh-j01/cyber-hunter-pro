@@ -1,0 +1,19 @@
+Technical Requirements Document (TRD): Cyber Threat Hunter Pro1. System ArchitectureThe platform utilizes a Decoupled Event-Driven Architecture. This ensures that high-volume log ingestion does not impact the responsiveness of the analyst dashboard.Component Overview:Ingestion Service (Python/FastAPI): Handles STIX/TAXII polling and raw log reception.Processing Pipeline (Celery/RabbitMQ): Asynchronous normalization, enrichment (GeoIP, Whois), and MITRE tagging.Data Store (MongoDB): Stores the flexible STIX objects and normalized events.Correlation Engine (Python): Runs periodic logic checks for Kill Chain progression.Web Dashboard (React/Tailwind): Provides the visual interface.2. Technical StackLanguages: Python 3.10+ (Backend), JavaScript/TypeScript (Frontend).Frameworks: FastAPI (REST API), React (UI), Tailwind CSS (Styling).Data Science: Pandas/NumPy (for pattern matching), Scikit-Learn (for anomaly detection).Databases: * MongoDB: Primary (Document Store).ElasticSearch (Optional/Scale): For full-text search across logs.Redis: Caching and Task Queue management.3. Data Schema & Logic3.1 Normalized Event Schema (Internal)All logs are converted to a standard JSON format before storage:{
+  "event_id": "uuid4",
+  "timestamp": "utc_timestamp",
+  "host": { "id": "hostname", "ip": "10.0.0.5", "os": "win22" },
+  "actor": { "user": "admin", "process_name": "powershell.exe" },
+  "action": "process_create",
+  "threat_intel": {
+    "is_malicious": true,
+    "matched_ioc": "hash_value",
+    "threat_group": "APT41"
+  },
+  "mitre": {
+    "tactic": "Execution",
+    "technique_id": "T1059.001",
+    "technique_name": "PowerShell"
+  },
+  "kill_chain_phase": "Installation"
+}
+3.2 Correlation Logic (The "Hunter" Algorithm)The engine evaluates the Kill Chain Progression Score (KCPS):$$KCPS = \sum (Weight_{Phase} \times Confidence_{Detection})$$If a host hits a KCPS threshold (e.g., > 15), a "Critical Hunting Lead" is generated.Phase Weights: Recon (1), Delivery (2), Installation (5), C2 (8), Actions (10).4. Module Specifications4.1 CTI IngestorTAXII Client: Uses the taxii2-client library to poll specific API roots.STIX Parser: Uses stix2 library to de-serialize JSON bundles.Deduplication: Hashing indicator values to prevent duplicate entries in the database.4.2 MITRE MapperLogic: A regex and keyword-based engine that scans process command lines and network traffic.Dynamic Updates: Periodically pulls the latest enterprise-attack.json from MITRE's GitHub to update Technique mappings.4.3 Visual Analytics EngineHeatmap: Implemented using a CSS Grid where each cell's background-color intensity is bound to the count of Technique detections.Force-Directed Graph: Uses D3.js to visualize the relationship between indicators and system assets.5. Security & Infrastructure5.1 Authentication & AuthorizationAuth: OAuth2 with JWT (JSON Web Tokens).RBAC (Role-Based Access Control): * Admin: Full system config.Analyst: Can view and investigate.ReadOnly: View dashboards only.5.2 DeploymentContainerization: All services orchestrated via docker-compose for development and Kubernetes (K8s) for production.CI/CD: GitHub Actions for automated testing of the Python correlation logic.6. API Design (End-points)MethodEndpointDescriptionGET/api/v1/intel/summaryReturns stats on ingested IoCs.POST/api/v1/logs/submitEndpoint for log forwarders to send data.GET/api/v1/hunt/matrixReturns the data for the MITRE Heatmap.GET/api/v1/hunt/killchain/{host_id}Returns the chronological chain for a host.PUT/api/v1/alerts/{id}/statusUpdates alert status (False Positive, Investigating, Resolved).7. Performance BenchmarksIngestion Rate: Support up to 5,000 Events Per Second (EPS) on a standard 4-core, 16GB RAM instance.Indexing: All fields in the "Normalized Event Schema" must be indexed in MongoDB to ensure rapid pivoting.
