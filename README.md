@@ -116,21 +116,74 @@ Click the **⚡ Simulate Ransomware** button in the dashboard header. This gener
 
 ---
 
-## Configuration
+## Configuration (For Contributors)
 
-Create a `.env` file in `backend/` with your own MongoDB credentials:
+The `.env` file is **not included** in the repository (it's in `.gitignore`). Every contributor must create their own.
+
+### Step 1: Create `backend/.env`
+
+Create a file named `.env` inside the `backend/` folder with the following content:
 
 ```env
-MONGODB_URI=<your-mongodb-connection-string>
-MONGODB_DB=<your-database-name>
+MONGODB_URI=mongodb://localhost:27017
+MONGODB_DB=cyberhunterpro
 ```
 
-| Variable | Description |
-|----------|-------------|
-| `MONGODB_URI` | Your MongoDB connection string |
-| `MONGODB_DB` | Your database name |
-| `REDIS_URL` | Only needed if using Celery |
-| `CORS_ORIGINS` | Allowed CORS origins (defaults to Vite dev server) |
+> **⚠️ Important:** The database name **must** be `cyberhunterpro`. An earlier version of the project used the name `cyber_hunter` — that is **outdated**. All import scripts, API endpoints, and the frontend expect the database to be named `cyberhunterpro`. If you already have a database named `cyber_hunter`, you can safely ignore it or drop it.
+
+### Step 2: Install MongoDB
+
+If you don't have MongoDB installed:
+- **Windows**: Download from [mongodb.com/try/download/community](https://www.mongodb.com/try/download/community) and install as a Windows service
+- **Mac**: `brew install mongodb-community` and `brew services start mongodb-community`
+- **Linux**: Follow the [official guide](https://www.mongodb.com/docs/manual/installation/)
+- **Alternative**: Use [MongoDB Atlas](https://www.mongodb.com/atlas) (free tier) and update `MONGODB_URI` with your Atlas connection string
+
+### Step 3: Start the Backend
+
+```bash
+cd backend
+python -m venv .venv
+.venv\Scripts\activate          # On Linux/Mac: source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
+
+### Step 4: Populate the Database
+
+With MongoDB running and the backend started, run the 3 import scripts to populate the database:
+
+```bash
+cd backend
+
+# Dataset 1: MITRE ATT&CK Enterprise (~1,000 events from 20 APT groups)
+python scripts/import_mitre_attack.py
+
+# Dataset 2: CICIDS-2017 network intrusion logs (590 events, 14 attack types)
+python scripts/import_cicids_logs.py
+
+# Dataset 3: Abuse.ch live threat feeds (100+ real active IoCs)
+python scripts/import_abusech_feeds.py
+```
+
+### Step 5: Start the Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend runs at `http://localhost:5173`.
+
+### Environment Variables Reference
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MONGODB_URI` | `mongodb://localhost:27017` | MongoDB connection string |
+| `MONGODB_DB` | `cyberhunterpro` | Database name (**must** be `cyberhunterpro`) |
+| `REDIS_URL` | — | Only needed if using Celery (optional) |
+| `CORS_ORIGINS` | `["http://localhost:5173"]` | Allowed CORS origins |
 
 Frontend API base can be overridden via `frontend/.env`:
 
