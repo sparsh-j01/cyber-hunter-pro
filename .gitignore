@@ -1,41 +1,69 @@
+# ========================
 # Python
+# ========================
 __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
+*.egg-info/
+*.egg
+*.whl
 *.log
 *.sqlite3
+pip-log.txt
+
+# Virtual environments
 .venv/
 env/
 venv/
-*.egg-info/
-
-# Backend virtualenv
 backend/.venv/
 
-# Node / frontend
+# ========================
+# Node / Frontend
+# ========================
 node_modules/
 frontend/node_modules/
 dist/
+dist-ssr/
 frontend/dist/
+*.local
 
-# OS / editor
-.DS_Store
-Thumbs.db
-desktop.ini
-*.swp
-*.swo
-*~
-
-# Environment & secrets
+# ========================
+# Environment & Secrets
+# ========================
 .env
 .env.*
 backend/.env
 
-# IDE
+# ========================
+# OS generated files
+# ========================
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+*.swp
+*.swo
+*~
+
+# ========================
+# IDE / Editor
+# ========================
 .vscode/
 .idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
 
+# ========================
+# Generated / Non-source files
+# ========================
+figures/
+*.docx
+
+# ========================
 # Gemini / Antigravity agent data
+# ========================
 .gemini/
-.PROJECT_DOCUMENTATION.md
+.agents/
